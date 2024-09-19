@@ -132,5 +132,9 @@ app.post('/create-checkout-session', async (req, res) => {
   }
 });
 
+app.get('/', (req, res) => {
+  res.send('Hello World!');
+}
+);
 // Start the server
 module.exports = app; // Export the app for Vercel
