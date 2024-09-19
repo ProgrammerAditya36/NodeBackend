@@ -105,8 +105,8 @@ app.post('/refresh', async (req, res) => {
 
 
 app.post('/create-checkout-session', async (req, res) => {
-  const { amount } = req.body;
-
+  const { amount, redirectURL } = req.body;
+  
   try {
       const session = await stripe.checkout.sessions.create({
           payment_method_types: ['card'],
@@ -121,8 +121,8 @@ app.post('/create-checkout-session', async (req, res) => {
             quantity: 1,
           }],
           mode: 'payment',
-          success_url: 'http://localhost:5173/success',
-          cancel_url: 'http://localhost:5173/cancel',
+          success_url: `${redirectURL}/success`,
+          cancel_url: `${redirectURL}/cancel`,
         });
 
       res.json({ id: session.id });
@@ -137,4 +137,11 @@ app.get('/', (req, res) => {
 }
 );
 // Start the server
+const envName = process.env.NODE_ENV || 'development';
+if(envName === 'development') {
+  app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+  });
+}
+
 module.exports = app; // Export the app for Vercel
