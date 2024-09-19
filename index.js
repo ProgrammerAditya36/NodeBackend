@@ -133,6 +133,4 @@ app.post('/create-checkout-session', async (req, res) => {
 });
 
 // Start the server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+module.exports = app; // Export the app for Vercel
