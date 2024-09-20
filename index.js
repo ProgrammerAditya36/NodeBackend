@@ -64,8 +64,8 @@ app.get('/me', async (req, res) => {
     res.status(status || 500).json({ error: errorMsg });
   }
 });
-app.get("/users", async (req, res) => {
-  const usernameExclude = req.query.username || '';
+app.get("/users/:usernameExclude", async (req, res) => {
+  const { usernameExclude } = req.params;
   try{
     const response = await axios.get('https://dummyjson.com/users');
     const data = response.data;
@@ -145,8 +145,8 @@ app.post('/create-checkout-session', async (req, res) => {
 });
 
 
-app.get('/gemini', async (req, res) => {
-  const { prompt } = req.query;
+app.post('/gemini', async (req, res) => {
+  const { prompt } = req.body;
   try {
     const result = await model.generateContent( prompt );
     const text = result.response.text();
