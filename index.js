@@ -1,6 +1,6 @@
 const express = require('express');
 const Stripe = require('stripe');
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args)); // use fetch in Node.js
+const axios = require('axios'); // Use axios in Node.js
 const cors = require('cors');
 const dotenv = require('dotenv');
 dotenv.config();
@@ -18,25 +18,24 @@ app.post('/login', async (req, res) => {
   const { username, password, expiresInMins = 1200 } = req.body;
 
   try {
-    const response = await fetch('https://dummyjson.com/auth/login', {
-      method: 'POST',
+    const response = await axios.post('https://dummyjson.com/auth/login', {
+      username,
+      password,
+      expiresInMins,
+    }, {
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, expiresInMins }),
-      credentials: 'include', // Cookies included in the request
+      withCredentials: true, // Include cookies in the request
     });
-    
-    const data = await response.json();
 
-    if (!response.ok) {
-      return res.status(response.status).json({ error: data.message || 'Login failed' });
-    }
+    const data = response.data;
 
     // Send back the token and user info
     res.cookie('accessToken', data.token, { httpOnly: true });
     res.cookie('refreshToken', data.refreshToken, { httpOnly: true });
     res.status(200).json(data);
   } catch (err) {
-    res.status(500).json({ error: 'Internal Server Error', details: err });
+    const errorMsg = err.response?.data?.message || 'Login failed';
+    res.status(err.response?.status || 500).json({ error: errorMsg });
   }
 });
 
@@ -49,29 +48,33 @@ app.get('/me', async (req, res) => {
   }
 
   try {
-    const response = await fetch('https://dummyjson.com/auth/me', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      credentials: 'include',
+    const response = await axios.get('https://dummyjson.com/auth/me', {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+      withCredentials: true,
     });
 
-    const data = await response.json();
-
-    if(!response.ok) {
-      if(response.status === 401) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-      if(response.status === 403) {
-        return res.status(403).json({ error: 'Forbidden' });
-      }
-      return res.status(response.status).json({ error: data.message || 'Failed to get user info' });
-    }
-
-    res.status(200).json(data);
+    res.status(200).json(response.data);
   } catch (err) {
-    res.status(500).json({ error: 'Internal Server Error', details: err });
+    const status = err.response?.status;
+    const errorMsg = err.response?.data?.message || 'Failed to get user info';
+    if (status === 401) return res.status(401).json({ error: 'Unauthorized' });
+    if (status === 403) return res.status(403).json({ error: 'Forbidden' });
+    res.status(status || 500).json({ error: errorMsg });
+  }
+});
+app.get("/users", async (req, res) => {
+  const usernameExclude = req.query.username || '';
+  try{
+    const response = await axios.get('https://dummyjson.com/users');
+    const data = response.data;
+    const allUsers = data.users;
+    const filteredUsers = allUsers.filter(user => user.username !== usernameExclude);
+    res.status(200).json({ users: filteredUsers });
+  } catch (err) {
+    const errorMsg = err.response?.data?.message || 'Failed to get users';
+    res.status(err.response?.status || 500).json({ error: errorMsg });
+
+
   }
 });
 
@@ -80,65 +83,60 @@ app.post('/refresh', async (req, res) => {
   const { refreshToken, expiresInMins = 60 } = req.body;
 
   try {
-    const response = await fetch('https://dummyjson.com/auth/refresh', {
-      method: 'POST',
+    const response = await axios.post('https://dummyjson.com/auth/refresh', {
+      refreshToken: refreshToken || req.cookies.refreshToken,
+      expiresInMins,
+    }, {
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        refreshToken: refreshToken || req.cookies.refreshToken, // Use cookie if not provided
-        expiresInMins,
-      }),
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return res.status(response.status).json({ error: data.message || 'Failed to refresh token' });
-    }
+    const data = response.data;
 
     // Send back the new access token
     res.cookie('accessToken', data.token, { httpOnly: true });
     res.status(200).json(data);
   } catch (err) {
-    res.status(500).json({ error: 'Internal Server Error', details: err });
+    const errorMsg = err.response?.data?.message || 'Failed to refresh token';
+    res.status(err.response?.status || 500).json({ error: errorMsg });
   }
 });
 
-
+// Endpoint to create a Stripe checkout session
 app.post('/create-checkout-session', async (req, res) => {
-  const { amount, redirectURL } = req.body;
-  
-  try {
-      const session = await stripe.checkout.sessions.create({
-          payment_method_types: ['card'],
-          line_items: [{
-            price_data: {
-              currency: 'usd',
-              product_data: {
-                name: 'Your Product Name',
-              },
-              unit_amount: parseInt(amount*100) 
-            },
-            quantity: 1,
-          }],
-          mode: 'payment',
-          success_url: `${redirectURL}/success`,
-          cancel_url: `${redirectURL}/cancel`,
-        });
+  const { from, to, type, amount, redirectURL } = req.body;
 
-      res.json({ id: session.id });
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `Cab from ${from} to ${to} (${type})`,
+          },
+          unit_amount: parseInt(amount * 100),
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${redirectURL}/success`,
+      cancel_url: `${redirectURL}/cancel`,
+    });
+
+    res.json({ id: session.id });
   } catch (error) {
-      console.log(error);
-      res.status(500).send(error);
+    console.error(error);
+    res.status(500).send(error);
   }
 });
 
 app.get('/', (req, res) => {
   res.send('Hello World!');
-}
-);
+});
+
 // Start the server
 const envName = process.env.NODE_ENV || 'development';
-if(envName === 'development') {
+if (envName === 'development') {
   app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
   });
