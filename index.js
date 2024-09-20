@@ -1,18 +1,20 @@
-const express = require('express');
-const Stripe = require('stripe');
-const axios = require('axios'); // Use axios in Node.js
-const cors = require('cors');
-const dotenv = require('dotenv');
+import Stripe from 'stripe';
+import axios from 'axios';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import express from 'express';
+import dbOperations from './db.js';
+import bodyParser from 'body-parser';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 dotenv.config();
 const stripe = Stripe(process.env.STRIPE_KEY); // Replace with your actual secret key
-const dbOperations = require('./db');
-const bodyParser = require('body-parser');
-
-const app = express();
 const PORT = process.env.PORT || 3000;
+const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 dbOperations.connectDB();
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({model:"gemini-1.5-flash"});
 // Endpoint to login a user and get a token
 app.post('/login', async (req, res) => {
   const { username, password, expiresInMins = 1200 } = req.body;
@@ -143,7 +145,18 @@ app.post('/create-checkout-session', async (req, res) => {
 });
 
 
-
+app.get('/gemini', async (req, res) => {
+  const { prompt } = req.query;
+  try {
+    const result = await model.generateContent( prompt );
+    const text = result.response.text();
+    res.json({ text });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send(error);
+  }
+}
+);
 app.post('/bookings', async (req, res) => {
   try {
     const savedRide = await dbOperations.saveRideBooking(req.body);
@@ -194,4 +207,4 @@ if (envName === 'development') {
   });
 }
 
-module.exports = app; // Export the app for Vercel
+export default app;

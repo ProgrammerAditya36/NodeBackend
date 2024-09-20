@@ -1,7 +1,7 @@
 
-const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid');
-const dotenv = require('dotenv');
+import mongoose from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
+import dotenv from 'dotenv';
 dotenv.config();
 // Define the Ride schema
 const rideSchema = new mongoose.Schema({
@@ -99,5 +99,4 @@ const dbOperations = {
     }
 
 };
-
-module.exports = dbOperations;
+export default dbOperations;
