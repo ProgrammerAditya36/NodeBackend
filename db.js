@@ -1,6 +1,5 @@
 
 import mongoose from 'mongoose';
-import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
 dotenv.config();
 // Define the Ride schema
@@ -9,6 +8,7 @@ const rideSchema = new mongoose.Schema({
     from: String,
     to: String,
     userId: String,
+    type: String,
     userName: String,
     sharedUserIds: [String],
     sharedUserNames: [String],
@@ -16,7 +16,10 @@ const rideSchema = new mongoose.Schema({
     driverName: String,
     carName: String,
     date: { type: Date, default: Date.now },
-    feedback: String
+    feedback: String,
+    distance: Number,
+    status: { type: String, default: 'confirmed' },
+    stars:Number
 });
 
 const Ride = mongoose.model('Ride', rideSchema);
@@ -38,7 +41,6 @@ const dbOperations = {
 
     saveRideBooking: async (bookingData) => {
         const newRide = new Ride({
-            bookingId: uuidv4(),
             ...bookingData,
             driverName: driverNames[Math.floor(Math.random() * driverNames.length)],
             carName: carNames[Math.floor(Math.random() * carNames.length)]
@@ -96,7 +98,46 @@ const dbOperations = {
         } catch (error) {
             throw new Error('Error adding feedback: ' + error.message);
         }
+    },
+    
+    cancelRide: async (rideId) => {
+        try {
+            const bookingId = rideId;
+            const ride = await Ride.findOne({ bookingId: bookingId });
+            if (!ride) {
+                throw new Error('Ride not found');
+            }
+            ride.status = 'cancelled';
+            const updatedRide = await ride.save();
+
+            if (!updatedRide) {
+                throw new Error('Ride not found');
+            }
+            return updatedRide;
+        } catch (error) {
+            throw new Error('Error cancelling ride: ' + error.message);
+        }
+    },
+
+    completeRide: async (rideId) => {
+        try {
+            const bookingId = rideId;
+            const ride = await Ride.findOne({ bookingId: bookingId });
+            if (!ride) {
+                throw new Error('Ride not found');
+            }
+            ride.status = 'completed';
+            const updatedRide = await ride.save();
+            if (!updatedRide) {
+                throw new Error('Ride not found');
+            }
+            return updatedRide;
+        } catch (error) {
+            throw new Error('Error completing ride: ' + error.message);
+        }
     }
+
+
 
 };
 export default dbOperations;

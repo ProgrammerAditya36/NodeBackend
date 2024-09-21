@@ -105,7 +105,7 @@ app.post('/refresh', async (req, res) => {
 
 // Endpoint to create a Stripe checkout session
 app.post('/create-checkout-session', async (req, res) => {
-  const { from, to, type, amount, userId, userName, sharedUserIds, sharedUserNames, redirectURL } = req.body;
+  const { from, to, type, amount, userId, userName, sharedUserIds, sharedUserNames, redirectURL, distance } = req.body;
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -114,7 +114,7 @@ app.post('/create-checkout-session', async (req, res) => {
         price_data: {
           currency: 'usd',
           product_data: {
-            name: `Cab from ${from} to ${to} (${type})`,
+            name: `Cab from ${from.toUpperCase()} to ${to.toUpperCase()} (${type.toUpperCase()})`,
           },
           unit_amount: parseInt(amount * 100), // Amount in cents
         },
@@ -135,6 +135,9 @@ app.post('/create-checkout-session', async (req, res) => {
       fare: amount,
       sharedUserIds: sharedUserIds,
       sharedUserNames: sharedUserNames,
+      type,
+      distance,
+      bookingId: session.id,
     });
 
     res.json({ id: session.id });
@@ -193,6 +196,28 @@ app.post('/rides/:rideId/feedback', async (req, res) => {
     res.status(500).json({ message: 'Error adding feedback', error: error.message });
   }
 });
+
+app.post('/rides/:rideId/cancel', async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const updatedRide = await dbOperations.cancelRide(rideId);
+    res.status(200).json({ message: 'Ride cancelled successfully', ride: updatedRide });
+  } catch (error) {
+    res.status(500).json({ message: 'Error cancelling ride', error: error.message });
+  }
+}
+);
+
+app.post('/rides/:rideId/complete', async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const updatedRide = await dbOperations.completeRide(rideId);
+    res.status(200).json({ message: 'Ride completed successfully', ride: updatedRide });
+  } catch (error) {
+    res.status(500).json({ message: 'Error completing ride', error: error.message });
+  }
+}
+);
 
 
 app.get('/', (req, res) => {
