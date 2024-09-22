@@ -6,8 +6,6 @@ import express from 'express';
 import dbOperations from './db.js';
 import bodyParser from 'body-parser';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import http from 'http';
-import { Server } from 'socket.io';
 
 dotenv.config();
 const stripe = Stripe(process.env.STRIPE_KEY); // Replace with your actual secret key
@@ -18,42 +16,10 @@ app.use(bodyParser.json());
 dbOperations.connectDB();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-const server = http.createServer(app);
 
 // Endpoint to login a user and get a token
 
 
-
-const io = new Server(server, {
-	cors: {
-		origin: '*',
-	},
-});
-
-const driverMessages = [
-	"I'll be there in 5 minutes.",
-	"I'm stuck in traffic, please wait a bit longer.",
-	"Your destination is noted, starting the trip now.",
-	"The weather looks good today, should be a smooth ride!",
-	"I have arrived at the pickup location."
-];
-
-io.on("connection", (socket) => {
-  
-	socket.on("send_message", (data) => {
-		// Simulate a delay for the driver's response (e.g., 2 seconds)
-		console.log(`Message received: ${data.message}`);
-		setTimeout(() => {
-			const randomMessage = driverMessages[Math.floor(Math.random() * driverMessages.length)];
-			// Emit the random message back to the sender (simulating the driver's response)
-			socket.broadcast.emit("receive_message", { message: randomMessage });
-		}, 2000); // 2-second delay
-	});
-  
-	socket.on("disconnect", () => {
-	  console.log(`User Disconnected: ${socket.id}`);
-	});
-});
 app.post('/login', async (req, res) => {
 	const { username, password, expiresInMins = 1200 } = req.body;
 
@@ -265,14 +231,10 @@ app.get('/', (req, res) => {
 // Start the server
 const envName = process.env.NODE_ENV || 'development';
 if (envName === 'development') {
-	server.listen(PORT, () => {
-		console.log(`Server is running on http://localhost:${PORT}`);
-	});
-}
-else {
-	server.listen(PORT, () => {
+	app.listen(PORT, () => {
 		console.log(`Server is running on port ${PORT}`);
-	});
+	}
+	);
 }
 
 
