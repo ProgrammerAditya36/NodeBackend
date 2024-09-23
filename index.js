@@ -109,7 +109,7 @@ app.post('/refresh', async (req, res) => {
 
 // Endpoint to create a Stripe checkout session
 app.post('/create-checkout-session', async (req, res) => {
-	const { from, to, type, amount, userId, userName, sharedUserIds, sharedUserNames, redirectURL, distance } = req.body;
+	const { from, to, type, amount, userId, userName, sharedUserIds, sharedUserNames, redirectURL, distance, fromCoordinates, toCoordinates } = req.body;
 
 	try {
 		const session = await stripe.checkout.sessions.create({
@@ -130,7 +130,6 @@ app.post('/create-checkout-session', async (req, res) => {
 
 		});
 
-
 		dbOperations.saveRideBooking({
 			from,
 			to,
@@ -142,6 +141,8 @@ app.post('/create-checkout-session', async (req, res) => {
 			type,
 			distance,
 			bookingId: session.id,
+			fromCoordinates,
+			toCoordinates,
 		});
 
 		res.json({ id: session.id });

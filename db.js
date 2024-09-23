@@ -7,6 +7,9 @@ const rideSchema = new mongoose.Schema({
     bookingId: String,
     from: String,
     to: String,
+    fromCoordinates: [Number],
+    toCoordinates: [Number],
+
     userId: String,
     type: String,
     userName: String,
